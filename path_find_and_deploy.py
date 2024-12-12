@@ -47,13 +47,13 @@ def path_find_and_deploy(graph, topology):
             if src["name"] == dst["name"]:
                 continue
 
-            path = nx.shortest_path(graph, source=src["name"], target=dst["name"])
-            print(f"Path from {src['name']} to {dst['name']}: {path}")
+            path1 = nx.shortest_path(graph, source=src["name"], target=dst["name"])
+            print(f"Path1 from {src['name']} to {dst['name']}: {path1}")
 
-            for i in range(1, len(path) - 1):
-                current_node = path[i]
-                next_node = path[i + 1]
-                prev_node = path[i - 1]
+            for i in range(1, len(path1) - 1):
+                current_node = path1[i]
+                next_node = path1[i + 1]
+                prev_node = path1[i - 1]
 
                 if not current_node.startswith("s"):
                     continue
@@ -68,11 +68,41 @@ def path_find_and_deploy(graph, topology):
                 deploy_flow(
                     switch, out_port, in_port, src_mac=dst["mac"], dst_mac=src["mac"]
                 )
-            return
+
+            graph_copy = graph.copy()
+
+            for i in range(len(path1) - 1):
+                u, v = path1[i], path1[i + 1]
+                if graph_copy.has_edge(u, v):
+                    graph_copy[u][v]["weight"] = 1000
+
+            path2 = nx.shortest_path(
+                graph_copy, source=src["name"], target=dst["name"], weight="weight"
+            )
+            print(f"Path2 from {src['name']} to {dst['name']}: {path2}")
+
+            for i in range(1, len(path2) - 1):
+                current_node = path2[i]
+                next_node = path2[i + 1]
+                prev_node = path2[i - 1]
+
+                if not current_node.startswith("s"):
+                    continue
+
+                switch = current_node
+                in_port = graph[prev_node][current_node]["port2"]
+                out_port = graph[current_node][next_node]["port1"]
+
+                deploy_flow(
+                    switch, in_port, out_port, src_mac=src["mac"], dst_mac=dst["mac"]
+                )
+                deploy_flow(
+                    switch, out_port, in_port, src_mac=dst["mac"], dst_mac=src["mac"]
+                )
+
 
 if __name__ == "__main__":
     topology_file = "topology.json"
     topology = load_topology(topology_file)
     graph = build_graph(topology)
-
     path_find_and_deploy(graph, topology)
