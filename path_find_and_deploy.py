@@ -17,22 +17,21 @@ def build_graph(topology):
     return graph
 
 
-def deploy_flow(switch, in_port, out_port, src_mac, dst_mac):
+def deploy_flow(switch, in_port, out_port, src_ip, dst_ip, priority):
     url = "http://127.0.0.1:8080/flow"
-    match = {"in_port": in_port, "eth_src": src_mac, "eth_dst": dst_mac}
+    match = {"in_port": in_port, "ipv4_src": src_ip, "ipv4_dst": dst_ip}
 
     data = {
         "switch": int(switch.replace("s", "")),
         "match": match,
         "actions": [{"port": out_port}],
+        "priority": priority
     }
-    print("url: ", url)
-    print("data: ", data)
 
     response = requests.post(url, json=data)
     if response.status_code == 200:
         print(
-            f"Deployed rule to switch {switch}: in_port {in_port} -> out_port {out_port}, match: {match}"
+            f"Deployed rule to switch {switch}: in_port {in_port} -> out_port {out_port}, match: {match}, priority: {priority}"
         )
     else:
         print(f"Failed to deploy rule to switch {switch}: {response.text}")
@@ -63,10 +62,10 @@ def path_find_and_deploy(graph, topology):
                 out_port = graph[current_node][next_node]["port1"]
 
                 deploy_flow(
-                    switch, in_port, out_port, src_mac=src["mac"], dst_mac=dst["mac"]
+                    switch, in_port, out_port, src_ip=src["ip"], dst_ip=dst["ip"], priority=100
                 )
                 deploy_flow(
-                    switch, out_port, in_port, src_mac=dst["mac"], dst_mac=src["mac"]
+                    switch, out_port, in_port, src_ip=dst["ip"], dst_ip=src["ip"], priority=100
                 )
 
             graph_copy = graph.copy()
@@ -94,10 +93,10 @@ def path_find_and_deploy(graph, topology):
                 out_port = graph[current_node][next_node]["port1"]
 
                 deploy_flow(
-                    switch, in_port, out_port, src_mac=src["mac"], dst_mac=dst["mac"]
+                    switch, in_port, out_port, src_ip=src["ip"], dst_ip=dst["ip"], priority=50
                 )
                 deploy_flow(
-                    switch, out_port, in_port, src_mac=dst["mac"], dst_mac=src["mac"]
+                    switch, out_port, in_port, src_ip=dst["ip"], dst_ip=src["ip"], priority=50
                 )
 
 

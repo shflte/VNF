@@ -22,7 +22,7 @@ class FlowController(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
-        """Handler to set initial flow rules (e.g., send all packets to controller)."""
+        # Handler to set initial flow rules
         datapath = ev.msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
