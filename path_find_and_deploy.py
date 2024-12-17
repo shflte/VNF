@@ -10,16 +10,20 @@ def load_topology(file_path):
 
 def build_graph(topology):
     graph = nx.Graph()
+    link_to_outport = {}
     for link in topology["links"]:
         graph.add_edge(
             link["node1"], link["node2"], port1=link["port1"], port2=link["port2"]
         )
-    return graph
+        link_to_outport[(link["node1"], link["node2"])] = link["port2"]
+        link_to_outport[(link["node2"], link["node1"])] = link["port1"]
+    return graph, link_to_outport
 
 
 def deploy_flow(switch, in_port, out_port, src_ip, dst_ip, priority):
     url = "http://127.0.0.1:8080/flow"
-    match = {"in_port": in_port, "ipv4_src": src_ip, "ipv4_dst": dst_ip}
+    eth_type = 0x0800
+    match = {"in_port": in_port, "eth_type": eth_type, "ipv4_src": src_ip, "ipv4_dst": dst_ip}
 
     data = {
         "switch": int(switch.replace("s", "")),
@@ -37,7 +41,7 @@ def deploy_flow(switch, in_port, out_port, src_ip, dst_ip, priority):
         print(f"Failed to deploy rule to switch {switch}: {response.text}")
 
 
-def path_find_and_deploy(graph, topology):
+def path_find_and_deploy(graph, topology, link_to_outport):
     hosts = topology["nodes"]["hosts"]
     host_info = {host["name"]: host for host in hosts}
 
@@ -58,8 +62,8 @@ def path_find_and_deploy(graph, topology):
                     continue
 
                 switch = current_node
-                in_port = graph[prev_node][current_node]["port2"]
-                out_port = graph[current_node][next_node]["port1"]
+                in_port = link_to_outport[(prev_node, current_node)]
+                out_port = link_to_outport[(next_node, current_node)]
 
                 deploy_flow(
                     switch, in_port, out_port, src_ip=src["ip"], dst_ip=dst["ip"], priority=100
@@ -89,8 +93,8 @@ def path_find_and_deploy(graph, topology):
                     continue
 
                 switch = current_node
-                in_port = graph[prev_node][current_node]["port2"]
-                out_port = graph[current_node][next_node]["port1"]
+                in_port = link_to_outport[(prev_node, current_node)]
+                out_port = link_to_outport[(next_node, current_node)]
 
                 deploy_flow(
                     switch, in_port, out_port, src_ip=src["ip"], dst_ip=dst["ip"], priority=50
@@ -103,5 +107,5 @@ def path_find_and_deploy(graph, topology):
 if __name__ == "__main__":
     topology_file = "topology.json"
     topology = load_topology(topology_file)
-    graph = build_graph(topology)
-    path_find_and_deploy(graph, topology)
+    graph, link_to_outport = build_graph(topology)
+    path_find_and_deploy(graph, topology, link_to_outport)

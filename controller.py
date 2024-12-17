@@ -46,9 +46,9 @@ class FlowController(app_manager.RyuApp):
         )
         datapath.send_msg(mod)
 
-    def install_flow(self, datapath_id, match, actions):
+    def install_flow(self, datapath_id, match, actions, priority):
         datapath = self.switches.get(datapath_id)
-        self.add_flow(datapath, 1, match, actions)
+        self.add_flow(datapath, priority, match, actions)
         self.logger.info(
             "Installed flow on switch {}: match={} actions={}".format(
                 datapath_id, match, actions
@@ -70,6 +70,7 @@ class RestAPIController(ControllerBase):
             datapath_id = data["switch"]
             match_fields = data["match"]
             actions = data["actions"]
+            priority = data["priority"]
 
             # Build match and actions for ryu
             parser = self.app.switches[datapath_id].ofproto_parser
@@ -77,7 +78,7 @@ class RestAPIController(ControllerBase):
             action_list = [parser.OFPActionOutput(a["port"]) for a in actions]
 
             # Install the flow rule
-            self.app.install_flow(datapath_id, match, action_list)
+            self.app.install_flow(datapath_id, match, action_list, priority)
 
             return Response(
                 content_type="application/json",
